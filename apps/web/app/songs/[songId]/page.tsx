@@ -83,8 +83,10 @@ export default function SongDetailPage() {
   const [lyricsInput, setLyricsInput] = useState("");
   const [metaDirty, setMetaDirty] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
+  const [metaSaved, setMetaSaved] = useState(false);
   const [lyricsDirty, setLyricsDirty] = useState(false);
   const [lyricsSaving, setLyricsSaving] = useState(false);
+  const [lyricsSaved, setLyricsSaved] = useState(false);
   const [error, setError] = useState("");
 
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -203,6 +205,8 @@ export default function SongDetailPage() {
       });
       await loadAll();
       setMetaDirty(false);
+      setMetaSaved(true);
+      setTimeout(() => setMetaSaved(false), 2000);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -234,6 +238,8 @@ export default function SongDetailPage() {
         body: JSON.stringify({ lyrics: lyricsInput })
       });
       setLyricsDirty(false);
+      setLyricsSaved(true);
+      setTimeout(() => setLyricsSaved(false), 2000);
       await loadAll();
     } catch (e) {
       setError((e as Error).message);
@@ -632,13 +638,17 @@ export default function SongDetailPage() {
             placeholder="e.g. F#m"
           />
         </label>
-        {metaSaving && <small>Saving...</small>}
+        {metaSaving ? <small>Saving...</small> : metaSaved ? <small>Saved</small> : null}
       </div>
 
       <div className="card col">
         <div className="row" style={{ justifyContent: "space-between" }}>
           <h2>Lyrics</h2>
-          {lyricsSaving && <small>Saving...</small>}
+          {lyricsSaving
+            ? <small>Saving...</small>
+            : lyricsSaved
+              ? <small>Saved</small>
+              : null}
         </div>
         <textarea
           rows={8}
