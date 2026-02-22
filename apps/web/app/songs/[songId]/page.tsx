@@ -458,7 +458,7 @@ export default function SongDetailPage() {
                       accept="audio/mp3,audio/mpeg"
                       onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_preview", e.target.files[0])}
                     />
-                    <button>mp3 upload</button>
+                    <span className="button-like">mp3 upload</span>
                   </label>
                   <label>
                     <input
@@ -467,7 +467,7 @@ export default function SongDetailPage() {
                       accept="audio/wav"
                       onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_source", e.target.files[0])}
                     />
-                    <button>wav upload</button>
+                    <span className="button-like">wav upload</span>
                   </label>
                   <label>
                     <input
@@ -476,7 +476,7 @@ export default function SongDetailPage() {
                       accept=".mid,.midi,audio/midi"
                       onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "midi", e.target.files[0])}
                     />
-                    <button>midi upload</button>
+                    <span className="button-like">midi upload</span>
                   </label>
                 </div>
 

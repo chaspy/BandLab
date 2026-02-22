@@ -68,6 +68,16 @@ button {
   cursor: pointer;
 }
 
+.button-like {
+  display: inline-block;
+  background: #293445;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
 button.primary {
   background: var(--accent);
   color: #0d2118;
