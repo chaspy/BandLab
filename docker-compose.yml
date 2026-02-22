@@ -1,0 +1,30 @@
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c '
+      sleep 3;
+      mc alias set local http://minio:9000 minioadmin minioadmin;
+      mc mb --ignore-existing local/band-daw;
+      mc anonymous set none local/band-daw;
+      mc cors set local/band-daw /cors.json;
+      '
+    volumes:
+      - ./scripts/minio-cors.json:/cors.json:ro
+
+volumes:
+  minio-data:
