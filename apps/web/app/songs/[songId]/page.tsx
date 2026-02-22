@@ -73,7 +73,6 @@ export default function SongDetailPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [trackName, setTrackName] = useState("New Track");
-  const [revisionTitle, setRevisionTitle] = useState<Record<string, string>>({});
   const [newSessionName, setNewSessionName] = useState("Session A");
   const [newNote, setNewNote] = useState("");
   const [newDecisionTitle, setNewDecisionTitle] = useState("");
@@ -164,18 +163,6 @@ export default function SongDetailPage() {
     }
   }
 
-  async function createRevision(trackId: string) {
-    try {
-      await apiFetch(`/api/tracks/${trackId}/revisions`, {
-        method: "POST",
-        body: JSON.stringify({ title: revisionTitle[trackId] || undefined })
-      });
-      await loadAll();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
   async function setActive(trackId: string, revisionId: string) {
     try {
       await apiFetch(`/api/tracks/${trackId}/active`, {
@@ -188,8 +175,19 @@ export default function SongDetailPage() {
     }
   }
 
-  async function uploadAsset(revisionId: string, assetType: "audio_preview" | "audio_source" | "midi", file: File) {
+  async function uploadAsset(trackId: string, assetType: "audio_preview" | "audio_source" | "midi", file: File) {
     try {
+      const created = await apiFetch<{ revision: { id: string } }>(`/api/tracks/${trackId}/revisions`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+      const revisionId = created.revision.id;
+
+      await apiFetch(`/api/tracks/${trackId}/active`, {
+        method: "POST",
+        body: JSON.stringify({ track_revision_id: revisionId })
+      });
+
       const format = file.name.toLowerCase().endsWith(".wav")
         ? "wav"
         : file.name.toLowerCase().endsWith(".mid") || file.name.toLowerCase().endsWith(".midi")
@@ -453,12 +451,33 @@ export default function SongDetailPage() {
                 </div>
 
                 <div className="row">
-                  <input
-                    placeholder="revision title"
-                    value={revisionTitle[track.id] || ""}
-                    onChange={(e) => setRevisionTitle((p) => ({ ...p, [track.id]: e.target.value }))}
-                  />
-                  <button onClick={() => createRevision(track.id)}>+ Revision</button>
+                  <label>
+                    <input
+                      type="file"
+                      style={{ display: "none" }}
+                      accept="audio/mp3,audio/mpeg"
+                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_preview", e.target.files[0])}
+                    />
+                    <button>mp3 upload</button>
+                  </label>
+                  <label>
+                    <input
+                      type="file"
+                      style={{ display: "none" }}
+                      accept="audio/wav"
+                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_source", e.target.files[0])}
+                    />
+                    <button>wav upload</button>
+                  </label>
+                  <label>
+                    <input
+                      type="file"
+                      style={{ display: "none" }}
+                      accept=".mid,.midi,audio/midi"
+                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "midi", e.target.files[0])}
+                    />
+                    <button>midi upload</button>
+                  </label>
                 </div>
 
                 <div className="col">
@@ -467,35 +486,7 @@ export default function SongDetailPage() {
                       <button onClick={() => setActive(track.id, rev.id)}>
                         r{rev.revision_number} {track.active_revision_id === rev.id ? "(active)" : ""}
                       </button>
-                      <div className="row">
-                        <label>
-                          <input
-                            type="file"
-                            style={{ display: "none" }}
-                            accept="audio/mp3,audio/mpeg"
-                            onChange={(e) => e.target.files?.[0] && uploadAsset(rev.id, "audio_preview", e.target.files[0])}
-                          />
-                          <button>mp3</button>
-                        </label>
-                        <label>
-                          <input
-                            type="file"
-                            style={{ display: "none" }}
-                            accept="audio/wav"
-                            onChange={(e) => e.target.files?.[0] && uploadAsset(rev.id, "audio_source", e.target.files[0])}
-                          />
-                          <button>wav</button>
-                        </label>
-                        <label>
-                          <input
-                            type="file"
-                            style={{ display: "none" }}
-                            accept=".mid,.midi,audio/midi"
-                            onChange={(e) => e.target.files?.[0] && uploadAsset(rev.id, "midi", e.target.files[0])}
-                          />
-                          <button>midi</button>
-                        </label>
-                      </div>
+                      <small>{rev.track_assets.map((a) => `${a.asset_type}:${a.status}`).join(" / ") || "-"}</small>
                     </div>
                   ))}
                 </div>
