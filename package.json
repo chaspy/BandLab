@@ -3,10 +3,10 @@
   "private": true,
   "packageManager": "pnpm@10.8.1",
   "scripts": {
-    "dev": "turbo run dev --parallel",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck",
+    "dev": "pnpm guard:unbound-supabase-auth && turbo run dev --parallel",
+    "build": "pnpm guard:unbound-supabase-auth && turbo run build",
+    "lint": "pnpm guard:unbound-supabase-auth && turbo run lint",
+    "typecheck": "pnpm guard:unbound-supabase-auth && turbo run typecheck",
     "guard:unbound-supabase-auth": "sh -c '! rg -n \"const\\\\s+\\\\w+\\\\s*=\\\\s*supabase\\\\.auth\\\\.[a-zA-Z_]+\" apps/web || (echo \"Error: Do not assign supabase.auth methods to variables (unbound this).\" >&2; exit 1)'",
     "dev:web": "pnpm --filter web dev",
     "dev:worker": "pnpm --filter worker dev"

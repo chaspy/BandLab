@@ -8,3 +8,6 @@ dist
 .env.*
 !.env.example
 supabase/.temp
+supabase/.branches
+apps/worker/.dev.vars
+apps/worker/.wrangler

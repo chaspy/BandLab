@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "sh -ac 'set -a; [ -f ../../.env ] && . ../../.env; set +a; wrangler dev --port 8787'",
-    "build": "sh -ac 'set -a; [ -f ../../.env ] && . ../../.env; set +a; wrangler deploy --dry-run'",
+    "dev": "./scripts/load-env-and-run.sh wrangler dev --port 8787",
+    "build": "./scripts/load-env-and-run.sh wrangler deploy --dry-run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
