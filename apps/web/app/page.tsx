@@ -28,7 +28,6 @@ export default function HomePage() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [newBandName, setNewBandName] = useState("My Band");
   const [inviteCode, setInviteCode] = useState("");
-  const [songTitle, setSongTitle] = useState("New Song");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -124,19 +123,19 @@ export default function HomePage() {
     }
   }
 
-  async function createSong(e: FormEvent) {
-    e.preventDefault();
+  async function createSong(title?: string) {
     if (!currentBandId) return;
     setError("");
+    const nextTitle = (title ?? "New Song").trim();
+    if (!nextTitle) return;
 
     try {
       await apiFetch<{ song: Song }>("/api/songs", {
         method: "POST",
         bandId: currentBandId,
-        body: JSON.stringify({ title: songTitle })
+        body: JSON.stringify({ title: nextTitle })
       });
       await loadSongs(currentBandId);
-      setSongTitle("New Song");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -230,17 +229,33 @@ export default function HomePage() {
           </div>
 
           <div className="card col">
-            <h2>Songs</h2>
-            <form className="row" onSubmit={createSong}>
-              <input value={songTitle} onChange={(e) => setSongTitle(e.target.value)} />
-              <button className="primary" type="submit">Create Song</button>
-            </form>
+            <div className="row" style={{ justifyContent: "space-between" }}>
+              <h2>Songs</h2>
+              <button
+                onClick={async () => {
+                  const title = window.prompt("New Song title", "New Song");
+                  if (title === null) return;
+                  await createSong(title);
+                }}
+              >
+                New
+              </button>
+            </div>
             <div className="col">
               {songs.map((song) => (
-                <div key={song.id} className="row" style={{ justifyContent: "space-between" }}>
-                  <div>
-                    <strong>{song.title}</strong>
-                    <small> BPM:{song.bpm ?? "-"} Key:{song.musical_key ?? "-"}</small>
+                <div
+                  key={song.id}
+                  className="card row"
+                  style={{
+                    justifyContent: "space-between",
+                    padding: 14,
+                    borderColor: "#42506a",
+                    background: "linear-gradient(180deg, #232f44 0%, #1b2434 100%)"
+                  }}
+                >
+                  <div className="col" style={{ gap: 4 }}>
+                    <strong style={{ fontSize: 18, lineHeight: 1.2 }}>{song.title}</strong>
+                    <small> BPM: {song.bpm ?? "-"} | Key: {song.musical_key ?? "-"}</small>
                   </div>
                   <button onClick={() => router.push(`/songs/${song.id}?bandId=${currentBandId}`)}>Open</button>
                 </div>
