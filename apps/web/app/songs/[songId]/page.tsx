@@ -798,7 +798,7 @@ export default function SongDetailPage() {
             <div key={track.id} className="card col" style={{ padding: 12, borderColor: "#3a4558" }}>
               <div className="track-daw-row">
                 <div className="track-daw-left col">
-                  <div className="row" style={{ justifyContent: "space-between", gap: 8 }}>
+                  <div className="row" style={{ justifyContent: "flex-start", gap: 8 }}>
                     {editingTrackId === track.id ? (
                       <input
                         autoFocus
@@ -844,8 +844,8 @@ export default function SongDetailPage() {
                     )}
                   </div>
 
-                  <div className="row" style={{ alignItems: "center", gap: 12 }}>
-                    <div className="row" style={{ flex: 1, minWidth: 0 }}>
+                  <div className="row" style={{ alignItems: "center", gap: 8, justifyContent: "flex-start" }}>
+                    <div className="row" style={{ minWidth: 0 }}>
                       <small style={{ whiteSpace: "nowrap" }}>Rev</small>
                       <select
                         className="compact-control revision-select"
