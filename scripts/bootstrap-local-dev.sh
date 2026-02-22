@@ -11,6 +11,13 @@ npx -y supabase@latest start >/tmp/bandlab-supabase-start.log 2>&1 || {
   exit 1
 }
 
+echo "[bootstrap] Applying pending local migrations..."
+npx -y supabase@latest migration up --local --include-all >/tmp/bandlab-supabase-migration.log 2>&1 || {
+  echo "[bootstrap] supabase migration up failed. See /tmp/bandlab-supabase-migration.log" >&2
+  cat /tmp/bandlab-supabase-migration.log >&2
+  exit 1
+}
+
 echo "[bootstrap] Syncing .env from Supabase local status..."
 ENV_OUT="$(npx -y supabase@latest status -o env)"
 eval "$(printf '%s\n' "$ENV_OUT" | sed 's/^/export /')"
