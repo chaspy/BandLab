@@ -875,7 +875,7 @@ async function getTrackWithBand(db: SupabaseClient, trackId: string) {
 async function getRevisionWithBand(db: SupabaseClient, revisionId: string) {
   const res = await db
     .from("track_revisions")
-    .select("id, track_id, tracks!inner(song_id, songs!inner(band_id))")
+    .select("id, track_id, tracks!track_revisions_track_id_fkey!inner(song_id, songs!inner(band_id))")
     .eq("id", revisionId)
     .single();
 
@@ -896,7 +896,7 @@ async function getAssetWithBand(db: SupabaseClient, assetId: string) {
   const res = await db
     .from("track_assets")
     .select(
-      "id, s3_key, content_type, track_revisions!inner(track_id, tracks!inner(song_id, songs!inner(band_id)))"
+      "id, s3_key, content_type, track_revisions!track_assets_track_revision_id_fkey!inner(track_id, tracks!track_revisions_track_id_fkey!inner(song_id, songs!inner(band_id)))"
     )
     .eq("id", assetId)
     .single();
