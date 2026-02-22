@@ -1,5 +1,7 @@
-export const MOCK_API_ENABLED = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
-export const MOCK_AUTH_ENABLED = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+import { WEB_CONFIG } from "./app-config";
+
+export const MOCK_API_ENABLED = WEB_CONFIG.useMockApi;
+export const MOCK_AUTH_ENABLED = WEB_CONFIG.useMockAuth;
 
 type MockUser = { id: string; email: string; password: string };
 type MockBand = { id: string; name: string; invite_code: string; created_by: string; created_at: string };

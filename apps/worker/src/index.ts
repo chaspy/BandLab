@@ -22,17 +22,13 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { zValidator } from "@hono/zod-validator";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { WORKER_CONFIG } from "./config";
 
 type Env = {
-  SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
-  S3_ENDPOINT: string;
-  S3_REGION: string;
   S3_ACCESS_KEY: string;
   S3_SECRET_KEY: string;
-  S3_BUCKET: string;
-  APP_ORIGIN: string;
 };
 
 type Variables = {
@@ -43,11 +39,23 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+function readSecret(c: { env: Env }, key: keyof Env): string {
+  const binding = c.env[key];
+  if (binding) return binding;
+
+  const runtimeEnv =
+    (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process?.env || {};
+  const value = runtimeEnv[key];
+  if (value) return value;
+
+  throw new Error(`${String(key)} is not configured`);
+}
+
 app.use(
   "/*",
   cors({
     origin: (origin, c) => {
-      const allowed = c.env.APP_ORIGIN;
+      const allowed = WORKER_CONFIG.appOrigin;
       if (!origin) return allowed;
       return origin === allowed ? origin : allowed;
     },
@@ -70,19 +78,19 @@ app.use("/api/*", async (c, next) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const anonClient = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_ANON_KEY);
+  const anonClient = createClient(WORKER_CONFIG.supabaseUrl, readSecret(c, "SUPABASE_ANON_KEY"));
   const userRes = await anonClient.auth.getUser(token);
   if (userRes.error || !userRes.data.user) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const db = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+  const db = createClient(WORKER_CONFIG.supabaseUrl, readSecret(c, "SUPABASE_SERVICE_ROLE_KEY"));
   const s3 = new S3Client({
-    region: c.env.S3_REGION,
-    endpoint: c.env.S3_ENDPOINT,
+    region: WORKER_CONFIG.s3Region,
+    endpoint: WORKER_CONFIG.s3Endpoint,
     credentials: {
-      accessKeyId: c.env.S3_ACCESS_KEY,
-      secretAccessKey: c.env.S3_SECRET_KEY
+      accessKeyId: readSecret(c, "S3_ACCESS_KEY"),
+      secretAccessKey: readSecret(c, "S3_SECRET_KEY")
     },
     forcePathStyle: true
   });
@@ -459,7 +467,7 @@ app.post("/api/revisions/:revisionId/assets/presign", zValidator("json", presign
   const uploadUrl = await getSignedUrl(
     s3,
     new PutObjectCommand({
-      Bucket: c.env.S3_BUCKET,
+      Bucket: WORKER_CONFIG.s3Bucket,
       Key: s3Key,
       ContentType: body.content_type
     }),
@@ -517,7 +525,7 @@ app.get("/api/assets/:assetId/stream", async (c) => {
   const signedGet = await getSignedUrl(
     s3,
     new GetObjectCommand({
-      Bucket: c.env.S3_BUCKET,
+      Bucket: WORKER_CONFIG.s3Bucket,
       Key: assetRes.s3_key
     }),
     { expiresIn: 300 }

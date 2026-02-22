@@ -39,16 +39,8 @@ pnpm install
 `apps/web` はモックAuth + モックAPIで単体起動できます。
 Supabase/MinIO/Worker を使わず、画面の主要フローをローカルで確認したいときに使います。
 
-```bash
-cp apps/web/.env.local.example apps/web/.env.local
-```
-
-`apps/web/.env.local` で以下を有効化:
-
-```env
-NEXT_PUBLIC_USE_MOCK_AUTH=true
-NEXT_PUBLIC_USE_MOCK_API=true
-```
+設定はコミット済みの `apps/web/lib/app-config.ts` で固定しています。
+（`useMockAuth: true`, `useMockApi: true`）
 
 起動:
 
@@ -84,10 +76,10 @@ docker compose up -d
 ### 4. 環境変数
 
 ```bash
-cp apps/web/.env.local.example apps/web/.env.local
-cp apps/worker/.dev.vars.example apps/worker/.dev.vars
+cp .env.example .env
 ```
 
+`.env` は秘匿情報のみ設定します（固定値はコード側の config にコミット済み）。
 `supabase status` で出た `anon key` / `service_role key` を設定してください。
 
 ### 5. 開発起動

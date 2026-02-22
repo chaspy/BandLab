@@ -1,9 +1,0 @@
-SUPABASE_URL=http://127.0.0.1:54321
-SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-S3_ENDPOINT=http://localhost:9000
-S3_REGION=us-east-1
-S3_ACCESS_KEY=minioadmin
-S3_SECRET_KEY=minioadmin
-S3_BUCKET=band-daw
-APP_ORIGIN=http://localhost:3000
