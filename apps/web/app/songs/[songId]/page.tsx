@@ -77,12 +77,18 @@ export default function SongDetailPage() {
   const [newNote, setNewNote] = useState("");
   const [newDecisionTitle, setNewDecisionTitle] = useState("");
   const [newDecisionText, setNewDecisionText] = useState("");
+  const [bpmInput, setBpmInput] = useState("");
+  const [keyInput, setKeyInput] = useState("");
   const [error, setError] = useState("");
 
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const gainNodes = useRef<Record<string, GainNode>>({});
   const panNodes = useRef<Record<string, StereoPannerNode>>({});
   const ctxRef = useRef<AudioContext | null>(null);
+  const recorderRefs = useRef<Record<string, MediaRecorder | null>>({});
+  const recordChunks = useRef<Record<string, BlobPart[]>>({});
+  const recordStreams = useRef<Record<string, MediaStream | null>>({});
+  const [recordingTrackId, setRecordingTrackId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!songId || !bandId) return;
@@ -92,6 +98,19 @@ export default function SongDetailPage() {
   useEffect(() => {
     syncAudioRouting();
   }, [tracks, sessionTracks]);
+
+  useEffect(() => {
+    return () => {
+      for (const trackId of Object.keys(recorderRefs.current)) {
+        stopRecording(trackId);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    setBpmInput(song?.bpm ? String(song.bpm) : "");
+    setKeyInput(song?.musical_key ?? "");
+  }, [song?.id]);
 
   const sortedTracks = useMemo(() => [...tracks].sort((a, b) => a.sort_order - b.sort_order), [tracks]);
 
@@ -163,11 +182,40 @@ export default function SongDetailPage() {
     }
   }
 
+  async function saveSongMeta() {
+    try {
+      await apiFetch(`/api/songs/${songId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          bpm: bpmInput.trim() ? Number(bpmInput) : null,
+          key: keyInput.trim() || null
+        })
+      });
+      await loadAll();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
   async function setActive(trackId: string, revisionId: string) {
     try {
       await apiFetch(`/api/tracks/${trackId}/active`, {
         method: "POST",
         body: JSON.stringify({ track_revision_id: revisionId })
+      });
+      await loadAll();
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  async function renameTrack(trackId: string, currentName: string) {
+    const next = window.prompt("トラック名を編集", currentName);
+    if (next === null || !next.trim()) return;
+    try {
+      await apiFetch(`/api/tracks/${trackId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: next.trim() })
       });
       await loadAll();
     } catch (e) {
@@ -188,11 +236,14 @@ export default function SongDetailPage() {
         body: JSON.stringify({ track_revision_id: revisionId })
       });
 
-      const format = file.name.toLowerCase().endsWith(".wav")
+      const lower = file.name.toLowerCase();
+      const format = lower.endsWith(".wav")
         ? "wav"
-        : file.name.toLowerCase().endsWith(".mid") || file.name.toLowerCase().endsWith(".midi")
+        : lower.endsWith(".mid") || lower.endsWith(".midi")
           ? "mid"
-          : "mp3";
+          : lower.endsWith(".webm")
+            ? "webm"
+            : "mp3";
 
       const presign = await apiFetch<{
         asset_id: string;
@@ -232,6 +283,69 @@ export default function SongDetailPage() {
     } catch (e) {
       setError((e as Error).message);
     }
+  }
+
+  async function startRecording(trackId: string) {
+    if (recordingTrackId && recordingTrackId !== trackId) {
+      setError("別トラックを録音中です。先に停止してください。");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      recordStreams.current[trackId] = stream;
+      recordChunks.current[trackId] = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordChunks.current[trackId].push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setError("録音に失敗しました");
+      };
+
+      recorder.onstop = async () => {
+        try {
+          const chunks = recordChunks.current[trackId] ?? [];
+          if (chunks.length === 0) return;
+          const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+          const file = new File([blob], `record-${Date.now()}.webm`, { type: blob.type });
+          await uploadAsset(trackId, "audio_preview", file);
+        } finally {
+          recordChunks.current[trackId] = [];
+          const s = recordStreams.current[trackId];
+          s?.getTracks().forEach((t) => t.stop());
+          recordStreams.current[trackId] = null;
+          recorderRefs.current[trackId] = null;
+          setRecordingTrackId((prev) => (prev === trackId ? null : prev));
+        }
+      };
+
+      recorderRefs.current[trackId] = recorder;
+      recorder.start();
+      setRecordingTrackId(trackId);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message || "マイクへのアクセスに失敗しました");
+    }
+  }
+
+  function stopRecording(trackId: string) {
+    const recorder = recorderRefs.current[trackId];
+    if (recorder && recorder.state !== "inactive") {
+      recorder.stop();
+      return;
+    }
+
+    const s = recordStreams.current[trackId];
+    s?.getTracks().forEach((t) => t.stop());
+    recordStreams.current[trackId] = null;
+    recorderRefs.current[trackId] = null;
+    setRecordingTrackId((prev) => (prev === trackId ? null : prev));
   }
 
   function getPreviewAssetId(trackId: string): string | null {
@@ -434,23 +548,44 @@ export default function SongDetailPage() {
         </small>
       </div>
 
+      <div className="card row" style={{ gap: 12, alignItems: "flex-end" }}>
+        <label className="col" style={{ maxWidth: 180 }}>
+          BPM
+          <input
+            type="number"
+            min={1}
+            max={400}
+            value={bpmInput}
+            onChange={(e) => setBpmInput(e.target.value)}
+          />
+        </label>
+        <label className="col" style={{ maxWidth: 220 }}>
+          Key
+          <input value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="e.g. F#m" />
+        </label>
+        <button className="primary" onClick={saveSongMeta}>Save BPM/Key</button>
+      </div>
+
       <div className="song-detail-grid">
         <div className="grid">
           <div className="card col">
-            <h2>Tracks</h2>
+            <h2>Tracks (DAW Lanes)</h2>
             <form className="row" onSubmit={createTrack}>
               <input value={trackName} onChange={(e) => setTrackName(e.target.value)} />
               <button type="submit" className="primary">Add</button>
             </form>
 
             {sortedTracks.map((track) => (
-              <div key={track.id} className="card col" style={{ padding: 12 }}>
-                <div className="row" style={{ justifyContent: "space-between" }}>
-                  <strong>{track.name}</strong>
-                  <small>active: {displayRevisionNum(track.id, track.active_revision_id, revisionsByTrack)}</small>
+              <div key={track.id} className="card col" style={{ padding: 12, borderColor: "#3a4558" }}>
+                <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
+                  <div className="row" style={{ gap: 12 }}>
+                    <strong>{track.name}</strong>
+                    <button onClick={() => renameTrack(track.id, track.name)}>Rename</button>
+                    <small>active: {displayRevisionNum(track.id, track.active_revision_id, revisionsByTrack)}</small>
+                  </div>
                 </div>
 
-                <div className="row">
+                <div className="row" style={{ flexWrap: "wrap" }}>
                   <label>
                     <input
                       type="file"
@@ -477,6 +612,65 @@ export default function SongDetailPage() {
                       onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "midi", e.target.files[0])}
                     />
                     <span className="button-like">midi upload</span>
+                  </label>
+                  {recordingTrackId === track.id ? (
+                    <button className="danger" onClick={() => stopRecording(track.id)}>
+                      Stop Rec
+                    </button>
+                  ) : (
+                    <button onClick={() => startRecording(track.id)} disabled={Boolean(recordingTrackId)}>
+                      Record
+                    </button>
+                  )}
+                </div>
+
+                <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
+                  <div className="col" style={{ flex: 1 }}>
+                    <small>Revision</small>
+                    <select
+                      value={sessionTracks[track.id]?.track_revision_id || ""}
+                      onChange={(e) => patchSessionTrack(track.id, { track_revision_id: e.target.value || null })}
+                    >
+                      <option value="">No revision</option>
+                      {(revisionsByTrack[track.id] || []).map((r) => (
+                        <option key={r.id} value={r.id}>
+                          r{r.revision_number}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <label className="row" style={{ marginTop: 18 }}>
+                    Mute
+                    <input
+                      type="checkbox"
+                      checked={sessionTracks[track.id]?.mute || false}
+                      onChange={(e) => patchSessionTrack(track.id, { mute: e.target.checked })}
+                    />
+                  </label>
+                </div>
+
+                <div className="row" style={{ gap: 12 }}>
+                  <label className="col" style={{ flex: 1 }}>
+                    Gain(dB)
+                    <input
+                      type="range"
+                      min={-24}
+                      max={12}
+                      step={0.5}
+                      value={sessionTracks[track.id]?.gain_db ?? 0}
+                      onChange={(e) => patchSessionTrack(track.id, { gain_db: Number(e.target.value) })}
+                    />
+                  </label>
+                  <label className="col" style={{ flex: 1 }}>
+                    Pan
+                    <input
+                      type="range"
+                      min={-1}
+                      max={1}
+                      step={0.01}
+                      value={sessionTracks[track.id]?.pan ?? 0}
+                      onChange={(e) => patchSessionTrack(track.id, { pan: Number(e.target.value) })}
+                    />
                   </label>
                 </div>
 
@@ -519,69 +713,20 @@ export default function SongDetailPage() {
               <input type="range" min={0} max={360} step={0.1} onChange={(e) => seekAll(Number(e.target.value))} />
             </div>
 
-            <div className="col">
-              {sortedTracks.map((track) => {
-                const revisions = revisionsByTrack[track.id] || [];
-                const state = sessionTracks[track.id];
+            <small>トラックごとの Revision/Mute/Gain/Pan は左の DAW レーンから一括操作できます。</small>
+          </div>
 
-                return (
-                  <div key={track.id} className="card col" style={{ padding: 12 }}>
-                    <strong>{track.name}</strong>
-                    <div className="row">
-                      <select
-                        value={state?.track_revision_id || ""}
-                        onChange={(e) => patchSessionTrack(track.id, { track_revision_id: e.target.value || null })}
-                      >
-                        <option value="">No revision</option>
-                        {revisions.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            r{r.revision_number}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="row">
-                        Mute
-                        <input
-                          type="checkbox"
-                          checked={state?.mute || false}
-                          onChange={(e) => patchSessionTrack(track.id, { mute: e.target.checked })}
-                        />
-                      </label>
-                    </div>
-                    <div className="row">
-                      <label className="col" style={{ flex: 1 }}>
-                        Gain(dB)
-                        <input
-                          type="range"
-                          min={-24}
-                          max={12}
-                          step={0.5}
-                          value={state?.gain_db ?? 0}
-                          onChange={(e) => patchSessionTrack(track.id, { gain_db: Number(e.target.value) })}
-                        />
-                      </label>
-                      <label className="col" style={{ flex: 1 }}>
-                        Pan
-                        <input
-                          type="range"
-                          min={-1}
-                          max={1}
-                          step={0.01}
-                          value={state?.pan ?? 0}
-                          onChange={(e) => patchSessionTrack(track.id, { pan: Number(e.target.value) })}
-                        />
-                      </label>
-                    </div>
-                    <audio
-                      ref={(el) => {
-                        audioRefs.current[track.id] = el;
-                      }}
-                      preload="auto"
-                    />
-                  </div>
-                );
-              })}
-            </div>
+          <div className="card col">
+            <h2>Audio Nodes</h2>
+            {sortedTracks.map((track) => (
+              <audio
+                key={track.id}
+                ref={(el) => {
+                  audioRefs.current[track.id] = el;
+                }}
+                preload="auto"
+              />
+            ))}
           </div>
 
           <div className="card col">

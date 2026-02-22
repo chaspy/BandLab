@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const assetTypeSchema = z.enum(["audio_preview", "audio_source", "midi"]);
-export const assetFormatSchema = z.enum(["mp3", "wav", "mid"]);
+export const assetFormatSchema = z.enum(["mp3", "wav", "mid", "webm"]);
 export const mixSessionBaseSchema = z.enum(["active", "latest"]);
 
 export const createBandSchema = z.object({
