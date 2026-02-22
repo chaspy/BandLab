@@ -96,7 +96,11 @@ export default function SongDetailPage() {
   const recorderRefs = useRef<Record<string, MediaRecorder | null>>({});
   const recordChunks = useRef<Record<string, BlobPart[]>>({});
   const recordStreams = useRef<Record<string, MediaStream | null>>({});
+  const renameTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const [recordingTrackId, setRecordingTrackId] = useState<string | null>(null);
+  const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
+  const [trackNameDrafts, setTrackNameDrafts] = useState<Record<string, string>>({});
+  const [trackNameSavingId, setTrackNameSavingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!songId || !bandId) return;
@@ -112,8 +116,23 @@ export default function SongDetailPage() {
       for (const trackId of Object.keys(recorderRefs.current)) {
         stopRecording(trackId);
       }
+      for (const timer of Object.values(renameTimers.current)) {
+        clearTimeout(timer);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    setTrackNameDrafts((prev) => {
+      const next = { ...prev };
+      for (const t of tracks) {
+        if (!next[t.id] || editingTrackId !== t.id) {
+          next[t.id] = t.name;
+        }
+      }
+      return next;
+    });
+  }, [tracks, editingTrackId]);
 
   useEffect(() => {
     setBpmInput(song?.bpm ? String(song.bpm) : "");
@@ -274,18 +293,36 @@ export default function SongDetailPage() {
     }
   }
 
-  async function renameTrack(trackId: string, currentName: string) {
-    const next = window.prompt("トラック名を編集", currentName);
-    if (next === null || !next.trim()) return;
+  async function saveTrackName(trackId: string, name: string) {
+    const nextName = name.trim();
+    if (!nextName) return;
+    const current = tracks.find((t) => t.id === trackId)?.name ?? "";
+    if (nextName === current) return;
     try {
+      setTrackNameSavingId(trackId);
       await apiFetch(`/api/tracks/${trackId}`, {
         method: "PATCH",
-        body: JSON.stringify({ name: next.trim() })
+        body: JSON.stringify({ name: nextName })
       });
       await loadAll();
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setTrackNameSavingId((prev) => (prev === trackId ? null : prev));
     }
+  }
+
+  function beginTrackNameEdit(trackId: string) {
+    setEditingTrackId(trackId);
+  }
+
+  function scheduleTrackNameSave(trackId: string, nextName: string) {
+    const prevTimer = renameTimers.current[trackId];
+    if (prevTimer) clearTimeout(prevTimer);
+
+    renameTimers.current[trackId] = setTimeout(() => {
+      void saveTrackName(trackId, nextName);
+    }, 500);
   }
 
   async function uploadAsset(trackId: string, assetType: "audio_preview" | "audio_source" | "midi", file: File) {
@@ -698,9 +735,29 @@ export default function SongDetailPage() {
           return (
             <div key={track.id} className="card col" style={{ padding: 12, borderColor: "#3a4558" }}>
               <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
-                <div className="row" style={{ gap: 12 }}>
-                  <strong>{track.name}</strong>
-                  <button onClick={() => renameTrack(track.id, track.name)}>Rename</button>
+              <div className="row" style={{ gap: 12 }}>
+                  {editingTrackId === track.id ? (
+                    <input
+                      autoFocus
+                      value={trackNameDrafts[track.id] ?? track.name}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setTrackNameDrafts((prev) => ({ ...prev, [track.id]: next }));
+                        scheduleTrackNameSave(track.id, next);
+                      }}
+                      onBlur={() => setEditingTrackId((prev) => (prev === track.id ? null : prev))}
+                      style={{ width: 220 }}
+                    />
+                  ) : (
+                    <strong
+                      style={{ cursor: "text" }}
+                      onClick={() => beginTrackNameEdit(track.id)}
+                      title="クリックで編集"
+                    >
+                      {track.name}
+                    </strong>
+                  )}
+                  {trackNameSavingId === track.id && <small>Saving...</small>}
                   <label className="row" style={{ gap: 6 }}>
                     <small>Active:</small>
                     <select
