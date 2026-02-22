@@ -27,8 +27,6 @@ import { WORKER_CONFIG } from "./config";
 type Env = {
   SUPABASE_ANON_KEY: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
-  S3_ACCESS_KEY: string;
-  S3_SECRET_KEY: string;
 };
 
 type Variables = {
@@ -89,8 +87,8 @@ app.use("/api/*", async (c, next) => {
     region: WORKER_CONFIG.s3Region,
     endpoint: WORKER_CONFIG.s3Endpoint,
     credentials: {
-      accessKeyId: readSecret(c, "S3_ACCESS_KEY"),
-      secretAccessKey: readSecret(c, "S3_SECRET_KEY")
+      accessKeyId: WORKER_CONFIG.s3AccessKey,
+      secretAccessKey: WORKER_CONFIG.s3SecretKey
     },
     forcePathStyle: true
   });

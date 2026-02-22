@@ -3,5 +3,7 @@ export const WORKER_CONFIG = {
   s3Endpoint: "http://localhost:9000",
   s3Region: "us-east-1",
   s3Bucket: "band-daw",
+  s3AccessKey: "minioadmin",
+  s3SecretKey: "minioadmin",
   appOrigin: "http://localhost:3000"
 } as const;
