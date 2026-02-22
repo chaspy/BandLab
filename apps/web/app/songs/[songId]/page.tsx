@@ -79,6 +79,8 @@ export default function SongDetailPage() {
   const [newDecisionText, setNewDecisionText] = useState("");
   const [bpmInput, setBpmInput] = useState("");
   const [keyInput, setKeyInput] = useState("");
+  const [metaDirty, setMetaDirty] = useState(false);
+  const [metaSaving, setMetaSaving] = useState(false);
   const [error, setError] = useState("");
 
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -110,6 +112,7 @@ export default function SongDetailPage() {
   useEffect(() => {
     setBpmInput(song?.bpm ? String(song.bpm) : "");
     setKeyInput(song?.musical_key ?? "");
+    setMetaDirty(false);
   }, [song?.id]);
 
   const sortedTracks = useMemo(() => [...tracks].sort((a, b) => a.sort_order - b.sort_order), [tracks]);
@@ -184,6 +187,7 @@ export default function SongDetailPage() {
 
   async function saveSongMeta() {
     try {
+      setMetaSaving(true);
       await apiFetch(`/api/songs/${songId}`, {
         method: "PATCH",
         body: JSON.stringify({
@@ -192,10 +196,29 @@ export default function SongDetailPage() {
         })
       });
       await loadAll();
+      setMetaDirty(false);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setMetaSaving(false);
     }
   }
+
+  useEffect(() => {
+    if (!song || !metaDirty) return;
+    const nextBpm = bpmInput.trim() ? Number(bpmInput) : null;
+    const nextKey = keyInput.trim() || null;
+    if (nextBpm === song.bpm && nextKey === song.musical_key) {
+      setMetaDirty(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void saveSongMeta();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [bpmInput, keyInput, song?.id, metaDirty]);
 
   async function setActive(trackId: string, revisionId: string) {
     try {
@@ -556,14 +579,24 @@ export default function SongDetailPage() {
             min={1}
             max={400}
             value={bpmInput}
-            onChange={(e) => setBpmInput(e.target.value)}
+            onChange={(e) => {
+              setBpmInput(e.target.value);
+              setMetaDirty(true);
+            }}
           />
         </label>
         <label className="col" style={{ maxWidth: 220 }}>
           Key
-          <input value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="e.g. F#m" />
+          <input
+            value={keyInput}
+            onChange={(e) => {
+              setKeyInput(e.target.value);
+              setMetaDirty(true);
+            }}
+            placeholder="e.g. F#m"
+          />
         </label>
-        <button className="primary" onClick={saveSongMeta}>Save BPM/Key</button>
+        {metaSaving && <small>Saving...</small>}
       </div>
 
       <div className="song-detail-grid">
