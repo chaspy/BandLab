@@ -123,8 +123,8 @@ h3 {
 
 .track-daw-row {
   display: grid;
-  grid-template-columns: 460px 1fr;
-  gap: 12px;
+  grid-template-columns: 380px 1fr;
+  gap: 8px;
   align-items: stretch;
 }
 
