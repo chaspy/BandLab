@@ -101,6 +101,9 @@ export default function SongDetailPage() {
   const [editingTrackId, setEditingTrackId] = useState<string | null>(null);
   const [trackNameDrafts, setTrackNameDrafts] = useState<Record<string, string>>({});
   const [trackNameSavingId, setTrackNameSavingId] = useState<string | null>(null);
+  const [timelineTimeSec, setTimelineTimeSec] = useState(0);
+  const [timelineDurationSec, setTimelineDurationSec] = useState(360);
+  const sortedTracks = useMemo(() => [...tracks].sort((a, b) => a.sort_order - b.sort_order), [tracks]);
 
   useEffect(() => {
     if (!songId || !bandId) return;
@@ -123,6 +126,31 @@ export default function SongDetailPage() {
   }, []);
 
   useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const firstTrack = sortedTracks[0];
+      const nextTime = firstTrack ? audioRefs.current[firstTrack.id]?.currentTime ?? 0 : 0;
+      setTimelineTimeSec((prev) => (Math.abs(prev - nextTime) > 0.03 ? nextTime : prev));
+
+      let maxDuration = 0;
+      for (const track of sortedTracks) {
+        const el = audioRefs.current[track.id];
+        const audioDur = el && Number.isFinite(el.duration) ? el.duration : 30;
+        const offsetSec = (sessionTracks[track.id]?.start_offset_ms ?? 0) / 1000;
+        maxDuration = Math.max(maxDuration, offsetSec + audioDur);
+      }
+      if (maxDuration > 0) {
+        setTimelineDurationSec((prev) => (Math.abs(prev - maxDuration) > 0.3 ? maxDuration : prev));
+      }
+
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [sortedTracks, sessionTracks]);
+
+  useEffect(() => {
     setTrackNameDrafts((prev) => {
       const next = { ...prev };
       for (const t of tracks) {
@@ -141,8 +169,6 @@ export default function SongDetailPage() {
     setMetaDirty(false);
     setLyricsDirty(false);
   }, [song?.id]);
-
-  const sortedTracks = useMemo(() => [...tracks].sort((a, b) => a.sort_order - b.sort_order), [tracks]);
 
   async function loadAll() {
     try {
@@ -504,6 +530,30 @@ export default function SongDetailPage() {
     });
   }
 
+  function seekFromLaneClick(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const next = timelineDurationSec * ratio;
+    setTimelineTimeSec(next);
+    void seekAll(next);
+  }
+
+  function waveformBars(trackId: string) {
+    const base = trackId.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return Array.from({ length: 64 }, (_, i) => {
+      const n = Math.sin((i + 1) * 0.53 + base * 0.07) * 0.5 + 0.5;
+      return 0.18 + n * 0.76;
+    });
+  }
+
+  function formatTime(sec: number) {
+    const s = Math.max(0, Math.floor(sec));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${String(r).padStart(2, "0")}`;
+  }
+
   async function ensureAudioContext() {
     if (!ctxRef.current) {
       ctxRef.current = new AudioContext();
@@ -719,6 +769,37 @@ export default function SongDetailPage() {
           <button className="primary" onClick={playAll}>Play</button>
           <button onClick={pauseAll}>Pause</button>
           <input type="range" min={0} max={360} step={0.1} onChange={(e) => seekAll(Number(e.target.value))} />
+        </div>
+
+        <div className="card col" style={{ padding: 12 }}>
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <small>Arrangement</small>
+            <small>
+              {formatTime(timelineTimeSec)} / {formatTime(timelineDurationSec)}
+            </small>
+          </div>
+          <div className="arranger-grid">
+            {sortedTracks.map((track) => {
+              const bars = waveformBars(track.id);
+              const offsetSec = (sessionTracks[track.id]?.start_offset_ms ?? 0) / 1000;
+              const leftPct = (offsetSec / timelineDurationSec) * 100;
+              const widthPct = Math.max(10, 100 - leftPct);
+              const playheadPct = (timelineTimeSec / timelineDurationSec) * 100;
+              return (
+                <div key={track.id} className="arranger-row">
+                  <div className="arranger-name">{track.name}</div>
+                  <div className="arranger-lane" onClick={seekFromLaneClick}>
+                    <div className="arranger-clip" style={{ left: `${leftPct}%`, width: `${widthPct}%` }}>
+                      {bars.map((h, idx) => (
+                        <div key={idx} className="arranger-bar" style={{ height: `${h * 100}%` }} />
+                      ))}
+                    </div>
+                    <div className="arranger-playhead" style={{ left: `${playheadPct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

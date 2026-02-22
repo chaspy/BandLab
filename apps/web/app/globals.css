@@ -105,6 +105,74 @@ h3 {
   gap: 16px;
 }
 
+.arranger-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.arranger-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.arranger-name {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arranger-lane {
+  position: relative;
+  height: 48px;
+  border-radius: 8px;
+  border: 1px solid #344055;
+  background:
+    repeating-linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.08) 0,
+      rgba(255, 255, 255, 0.08) 1px,
+      transparent 1px,
+      transparent 40px
+    ),
+    linear-gradient(180deg, #131a27 0%, #0f1520 100%);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.arranger-clip {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(92, 129, 255, 0.34) 0%, rgba(63, 89, 190, 0.3) 100%);
+  border: 1px solid rgba(108, 146, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 4px;
+}
+
+.arranger-bar {
+  width: 2px;
+  background: rgba(214, 226, 255, 0.85);
+  border-radius: 2px;
+  align-self: center;
+}
+
+.arranger-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #73f2bf;
+  box-shadow: 0 0 8px rgba(115, 242, 191, 0.6);
+  pointer-events: none;
+}
+
 @media (min-width: 960px) {
   .song-detail-grid {
     display: grid;
