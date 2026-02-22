@@ -80,8 +80,10 @@ export default function HomePage() {
   async function handleLogin(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const fn = mode === "login" ? supabase.auth.signInWithPassword : supabase.auth.signUp;
-    const res = await fn({ email, password });
+    const res =
+      mode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
     if (res.error) {
       setError(res.error.message);
       return;
