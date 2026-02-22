@@ -844,10 +844,11 @@ export default function SongDetailPage() {
                     )}
                   </div>
 
-                  <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
-                    <div className="col" style={{ flex: 1 }}>
-                      <small>Revision</small>
+                  <div className="row" style={{ alignItems: "center", gap: 12 }}>
+                    <div className="row" style={{ flex: 1, minWidth: 0 }}>
+                      <small style={{ whiteSpace: "nowrap" }}>Rev</small>
                       <select
+                        className="compact-control revision-select"
                         value={sessionTracks[track.id]?.track_revision_id || track.active_revision_id || ""}
                         onChange={(e) => {
                           const revisionId = e.target.value;

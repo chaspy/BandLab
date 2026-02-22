@@ -59,6 +59,17 @@ select {
   color: var(--text);
 }
 
+.compact-control {
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 0.92rem;
+}
+
+.revision-select {
+  width: 124px;
+  min-width: 124px;
+}
+
 button {
   background: #293445;
   color: var(--text);
