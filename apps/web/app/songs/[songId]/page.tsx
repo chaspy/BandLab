@@ -42,8 +42,6 @@ type Revision = {
   track_assets: Asset[];
 };
 
-type MixSession = { id: string; song_id: string; name: string };
-
 type MixSessionTrack = {
   track_id: string;
   track_revision_id: string | null;
@@ -68,13 +66,10 @@ export default function SongDetailPage() {
   const [song, setSong] = useState<Song | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [revisionsByTrack, setRevisionsByTrack] = useState<Record<string, Revision[]>>({});
-  const [sessions, setSessions] = useState<MixSession[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState("");
   const [sessionTracks, setSessionTracks] = useState<Record<string, MixSessionTrack>>({});
   const [notes, setNotes] = useState<Note[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [trackName, setTrackName] = useState("New Track");
-  const [newSessionName, setNewSessionName] = useState("Session A");
   const [newNote, setNewNote] = useState("");
   const [newDecisionTitle, setNewDecisionTitle] = useState("");
   const [newDecisionText, setNewDecisionText] = useState("");
@@ -173,17 +168,15 @@ export default function SongDetailPage() {
 
   async function loadAll() {
     try {
-      const [songRes, tracksRes, sessionsRes, notesRes, decisionsRes] = await Promise.all([
+      const [songRes, tracksRes, notesRes, decisionsRes] = await Promise.all([
         apiFetch<{ song: Song }>(`/api/songs/${songId}`),
         apiFetch<{ tracks: Track[] }>(`/api/songs/${songId}/tracks`),
-        apiFetch<{ sessions: MixSession[] }>(`/api/songs/${songId}/sessions`),
         apiFetch<{ notes: Note[] }>(`/api/songs/${songId}/notes`),
         apiFetch<{ decisions: Decision[] }>(`/api/songs/${songId}/decisions`)
       ]);
 
       setSong(songRes.song);
       setTracks(tracksRes.tracks);
-      setSessions(sessionsRes.sessions);
       setNotes(notesRes.notes);
       setDecisions(decisionsRes.decisions);
 
@@ -195,34 +188,24 @@ export default function SongDetailPage() {
       );
       setRevisionsByTrack(Object.fromEntries(revisionsEntries));
 
-      if (sessionsRes.sessions[0]) {
-        await selectSession(sessionsRes.sessions[0].id);
-      } else {
-        setSessionTracks(
-          Object.fromEntries(
-            tracksRes.tracks.map((t) => [
-              t.id,
-              {
-                track_id: t.id,
-                track_revision_id: t.active_revision_id,
-                mute: false,
-                gain_db: 0,
-                pan: 0,
-                start_offset_ms: 0
-              }
-            ])
-          )
-        );
-      }
+      setSessionTracks(
+        Object.fromEntries(
+          tracksRes.tracks.map((t) => [
+            t.id,
+            {
+              track_id: t.id,
+              track_revision_id: t.active_revision_id,
+              mute: false,
+              gain_db: 0,
+              pan: 0,
+              start_offset_ms: 0
+            }
+          ])
+        )
+      );
     } catch (e) {
       setError((e as Error).message);
     }
-  }
-
-  async function selectSession(sessionId: string) {
-    setSelectedSessionId(sessionId);
-    const res = await apiFetch<{ session: { tracks: MixSessionTrack[] } }>(`/api/sessions/${sessionId}`);
-    setSessionTracks(Object.fromEntries(res.session.tracks.map((x) => [x.track_id, x])));
   }
 
   async function createTrack(e: FormEvent) {
@@ -601,31 +584,6 @@ export default function SongDetailPage() {
     }
   }
 
-  async function createSession(base: "active" | "latest") {
-    try {
-      await apiFetch(`/api/songs/${songId}/sessions`, {
-        method: "POST",
-        body: JSON.stringify({ name: newSessionName, base })
-      });
-      await loadAll();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
-  async function saveSessionTracks() {
-    if (!selectedSessionId) return;
-    try {
-      await apiFetch(`/api/sessions/${selectedSessionId}/tracks`, {
-        method: "PUT",
-        body: JSON.stringify({ tracks: Object.values(sessionTracks) })
-      });
-      await loadAll();
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
   function patchSessionTrack(trackId: string, patch: Partial<MixSessionTrack>) {
     setSessionTracks((prev) => ({
       ...prev,
@@ -756,22 +714,7 @@ export default function SongDetailPage() {
       </div>
 
       <div className="card col">
-        <h2>Player + Mix Session</h2>
-        <div className="row">
-          <select value={selectedSessionId} onChange={(e) => selectSession(e.target.value)}>
-            <option value="">No Session</option>
-            {sessions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <input value={newSessionName} onChange={(e) => setNewSessionName(e.target.value)} />
-          <button onClick={() => createSession("active")}>Save Active</button>
-          <button onClick={() => createSession("latest")}>Save Latest</button>
-          <button className="primary" onClick={saveSessionTracks}>Update Session</button>
-        </div>
-
+        <h2>Player</h2>
         <div className="row">
           <button className="primary" onClick={playAll}>Play</button>
           <button onClick={pauseAll}>Pause</button>
@@ -993,16 +936,6 @@ export default function SongDetailPage() {
       {error && <small style={{ color: "#ff8080" }}>{error}</small>}
     </main>
   );
-}
-
-function displayRevisionNum(
-  trackId: string,
-  revisionId: string | null,
-  revisionsByTrack: Record<string, Revision[]>
-) {
-  const list = revisionsByTrack[trackId] || [];
-  const rev = list.find((x) => x.id === revisionId);
-  return rev ? `r${rev.revision_number}` : "-";
 }
 
 function prevSessionTrack(trackId: string, tracks: Track[], sessionTracks: Record<string, MixSessionTrack>): MixSessionTrack {
