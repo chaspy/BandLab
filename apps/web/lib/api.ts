@@ -1,7 +1,12 @@
 import { API_BASE } from "./config";
+import { MOCK_API_ENABLED, mockApiFetch } from "./mock";
 import { supabase } from "./supabase";
 
 export async function apiFetch<T>(path: string, init?: RequestInit & { bandId?: string }): Promise<T> {
+  if (MOCK_API_ENABLED) {
+    return mockApiFetch<T>(path, init);
+  }
+
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token;
 

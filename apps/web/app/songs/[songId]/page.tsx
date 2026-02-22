@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { API_BASE } from "../../../lib/config";
 import { apiFetch } from "../../../lib/api";
+import { getMockAssetStreamUrl, MOCK_API_ENABLED, mockUploadAssetFile } from "../../../lib/mock";
 import { supabase } from "../../../lib/supabase";
 
 type Song = {
@@ -210,14 +211,18 @@ export default function SongDetailPage() {
         })
       });
 
-      const putRes = await fetch(presign.upload_url, {
-        method: "PUT",
-        headers: presign.required_headers,
-        body: file
-      });
+      if (MOCK_API_ENABLED) {
+        await mockUploadAssetFile(presign.asset_id, file);
+      } else {
+        const putRes = await fetch(presign.upload_url, {
+          method: "PUT",
+          headers: presign.required_headers,
+          body: file
+        });
 
-      if (!putRes.ok) {
-        throw new Error(`Upload failed: ${putRes.status}`);
+        if (!putRes.ok) {
+          throw new Error(`Upload failed: ${putRes.status}`);
+        }
       }
 
       await apiFetch(`/api/assets/${presign.asset_id}/complete`, {
@@ -244,6 +249,9 @@ export default function SongDetailPage() {
   }
 
   async function streamUrl(assetId: string) {
+    if (MOCK_API_ENABLED) {
+      return getMockAssetStreamUrl(assetId);
+    }
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
     return `${API_BASE}/api/assets/${assetId}/stream?token=${encodeURIComponent(token || "")}`;

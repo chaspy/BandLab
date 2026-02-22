@@ -34,6 +34,32 @@
 pnpm install
 ```
 
+### Docker不要のモック開発モード（フロント開発向け）
+
+`apps/web` はモックAuth + モックAPIで単体起動できます。
+Supabase/MinIO/Worker を使わず、画面の主要フローをローカルで確認したいときに使います。
+
+```bash
+cp apps/web/.env.local.example apps/web/.env.local
+```
+
+`apps/web/.env.local` で以下を有効化:
+
+```env
+NEXT_PUBLIC_USE_MOCK_AUTH=true
+NEXT_PUBLIC_USE_MOCK_API=true
+```
+
+起動:
+
+```bash
+pnpm --filter web dev
+```
+
+注意:
+- モックデータはブラウザセッション中のメモリ保持です（再起動でリセット）。
+- 本番互換の検証は staging / production Supabase で実施してください。
+
 ### 2. Supabase local 起動
 
 ```bash
