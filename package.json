@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.8.1",
   "scripts": {
-    "dev": "pnpm guard:unbound-supabase-auth && turbo run dev --parallel",
+    "dev": "./scripts/bootstrap-local-dev.sh && pnpm guard:unbound-supabase-auth && turbo run dev --parallel",
     "build": "pnpm guard:unbound-supabase-auth && turbo run build",
     "lint": "pnpm guard:unbound-supabase-auth && turbo run lint",
     "typecheck": "pnpm guard:unbound-supabase-auth && turbo run typecheck",
