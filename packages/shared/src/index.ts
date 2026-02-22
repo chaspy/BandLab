@@ -17,7 +17,8 @@ export const createSongSchema = z.object({
   bpm: z.number().int().min(1).max(400).optional(),
   key: z.string().max(32).optional(),
   time_signature: z.string().max(16).optional(),
-  description: z.string().max(2000).optional()
+  description: z.string().max(2000).optional(),
+  lyrics: z.string().max(20000).optional()
 });
 
 export const updateSongSchema = createSongSchema.partial();

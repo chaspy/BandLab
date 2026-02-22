@@ -14,6 +14,7 @@ type Song = {
   musical_key: string | null;
   time_signature: string | null;
   description: string | null;
+  lyrics: string | null;
 };
 
 type Track = {
@@ -79,8 +80,11 @@ export default function SongDetailPage() {
   const [newDecisionText, setNewDecisionText] = useState("");
   const [bpmInput, setBpmInput] = useState("");
   const [keyInput, setKeyInput] = useState("");
+  const [lyricsInput, setLyricsInput] = useState("");
   const [metaDirty, setMetaDirty] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
+  const [lyricsDirty, setLyricsDirty] = useState(false);
+  const [lyricsSaving, setLyricsSaving] = useState(false);
   const [error, setError] = useState("");
 
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
@@ -112,7 +116,9 @@ export default function SongDetailPage() {
   useEffect(() => {
     setBpmInput(song?.bpm ? String(song.bpm) : "");
     setKeyInput(song?.musical_key ?? "");
+    setLyricsInput(song?.lyrics ?? "");
     setMetaDirty(false);
+    setLyricsDirty(false);
   }, [song?.id]);
 
   const sortedTracks = useMemo(() => [...tracks].sort((a, b) => a.sort_order - b.sort_order), [tracks]);
@@ -219,6 +225,36 @@ export default function SongDetailPage() {
 
     return () => clearTimeout(timer);
   }, [bpmInput, keyInput, song?.id, metaDirty]);
+
+  async function saveLyrics() {
+    try {
+      setLyricsSaving(true);
+      await apiFetch(`/api/songs/${songId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ lyrics: lyricsInput })
+      });
+      setLyricsDirty(false);
+      await loadAll();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLyricsSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!song || !lyricsDirty) return;
+    if ((song.lyrics ?? "") === lyricsInput) {
+      setLyricsDirty(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      void saveLyrics();
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [lyricsInput, song?.id, lyricsDirty]);
 
   async function setActive(trackId: string, revisionId: string) {
     try {
@@ -597,6 +633,22 @@ export default function SongDetailPage() {
           />
         </label>
         {metaSaving && <small>Saving...</small>}
+      </div>
+
+      <div className="card col">
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <h2>Lyrics</h2>
+          {lyricsSaving && <small>Saving...</small>}
+        </div>
+        <textarea
+          rows={8}
+          placeholder="歌詞を入力..."
+          value={lyricsInput}
+          onChange={(e) => {
+            setLyricsInput(e.target.value);
+            setLyricsDirty(true);
+          }}
+        />
       </div>
 
       <div className="card col">

@@ -13,6 +13,7 @@ type Song = {
   musical_key: string | null;
   time_signature: string | null;
   description: string | null;
+  lyrics: string | null;
 };
 
 const CURRENT_BAND_KEY = "bandlab.currentBandId";

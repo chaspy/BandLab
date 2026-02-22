@@ -206,6 +206,7 @@ app.post("/api/songs", zValidator("json", createSongSchema), async (c) => {
       musical_key: body.key ?? null,
       time_signature: body.time_signature ?? null,
       description: body.description ?? null,
+      lyrics: body.lyrics ?? null,
       created_by: userId
     })
     .select("*")
@@ -246,6 +247,7 @@ app.patch("/api/songs/:songId", zValidator("json", updateSongSchema), async (c) 
       musical_key: body.key,
       time_signature: body.time_signature,
       description: body.description,
+      lyrics: body.lyrics,
       updated_at: new Date().toISOString()
     })
     .eq("id", songId)
