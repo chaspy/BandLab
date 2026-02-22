@@ -2,6 +2,8 @@
 
 バンド制作向けのMVPです。以下をローカルで動かします。
 
+- セッション要件メモ: `docs/session-context-2026-02-22.md`
+
 - `apps/web`: Next.js フロントエンド (`http://localhost:3000`)
 - `apps/worker`: Cloudflare Workers + Hono API (`http://localhost:8787`)
 - Supabase Local: Auth + Postgres (`http://127.0.0.1:54321`)
