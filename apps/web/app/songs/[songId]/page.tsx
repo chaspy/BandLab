@@ -599,205 +599,196 @@ export default function SongDetailPage() {
         {metaSaving && <small>Saving...</small>}
       </div>
 
-      <div className="song-detail-grid">
-        <div className="grid">
-          <div className="card col">
-            <h2>Tracks (DAW Lanes)</h2>
-            <form className="row" onSubmit={createTrack}>
-              <input value={trackName} onChange={(e) => setTrackName(e.target.value)} />
-              <button type="submit" className="primary">Add</button>
-            </form>
+      <div className="card col">
+        <h2>Player + Mix Session</h2>
+        <div className="row">
+          <select value={selectedSessionId} onChange={(e) => selectSession(e.target.value)}>
+            <option value="">No Session</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <input value={newSessionName} onChange={(e) => setNewSessionName(e.target.value)} />
+          <button onClick={() => createSession("active")}>Save Active</button>
+          <button onClick={() => createSession("latest")}>Save Latest</button>
+          <button className="primary" onClick={saveSessionTracks}>Update Session</button>
+        </div>
 
-            {sortedTracks.map((track) => (
-              <div key={track.id} className="card col" style={{ padding: 12, borderColor: "#3a4558" }}>
-                <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
-                  <div className="row" style={{ gap: 12 }}>
-                    <strong>{track.name}</strong>
-                    <button onClick={() => renameTrack(track.id, track.name)}>Rename</button>
-                    <small>active: {displayRevisionNum(track.id, track.active_revision_id, revisionsByTrack)}</small>
-                  </div>
-                </div>
+        <div className="row">
+          <button className="primary" onClick={playAll}>Play</button>
+          <button onClick={pauseAll}>Pause</button>
+          <input type="range" min={0} max={360} step={0.1} onChange={(e) => seekAll(Number(e.target.value))} />
+        </div>
+      </div>
 
-                <div className="row" style={{ flexWrap: "wrap" }}>
-                  <label>
-                    <input
-                      type="file"
-                      style={{ display: "none" }}
-                      accept="audio/mp3,audio/mpeg"
-                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_preview", e.target.files[0])}
-                    />
-                    <span className="button-like">mp3 upload</span>
-                  </label>
-                  <label>
-                    <input
-                      type="file"
-                      style={{ display: "none" }}
-                      accept="audio/wav"
-                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_source", e.target.files[0])}
-                    />
-                    <span className="button-like">wav upload</span>
-                  </label>
-                  <label>
-                    <input
-                      type="file"
-                      style={{ display: "none" }}
-                      accept=".mid,.midi,audio/midi"
-                      onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "midi", e.target.files[0])}
-                    />
-                    <span className="button-like">midi upload</span>
-                  </label>
-                  {recordingTrackId === track.id ? (
-                    <button className="danger" onClick={() => stopRecording(track.id)}>
-                      Stop Rec
-                    </button>
-                  ) : (
-                    <button onClick={() => startRecording(track.id)} disabled={Boolean(recordingTrackId)}>
-                      Record
-                    </button>
-                  )}
-                </div>
+      <div className="card col">
+        <h2>Tracks (DAW Lanes)</h2>
+        <form className="row" onSubmit={createTrack}>
+          <input value={trackName} onChange={(e) => setTrackName(e.target.value)} />
+          <button type="submit" className="primary">Add</button>
+        </form>
 
-                <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
-                  <div className="col" style={{ flex: 1 }}>
-                    <small>Revision</small>
-                    <select
-                      value={sessionTracks[track.id]?.track_revision_id || ""}
-                      onChange={(e) => patchSessionTrack(track.id, { track_revision_id: e.target.value || null })}
-                    >
-                      <option value="">No revision</option>
-                      {(revisionsByTrack[track.id] || []).map((r) => (
-                        <option key={r.id} value={r.id}>
-                          r{r.revision_number}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <label className="row" style={{ marginTop: 18 }}>
-                    Mute
-                    <input
-                      type="checkbox"
-                      checked={sessionTracks[track.id]?.mute || false}
-                      onChange={(e) => patchSessionTrack(track.id, { mute: e.target.checked })}
-                    />
-                  </label>
-                </div>
+        {sortedTracks.map((track) => (
+          <div key={track.id} className="card col" style={{ padding: 12, borderColor: "#3a4558" }}>
+            <div className="row" style={{ justifyContent: "space-between", gap: 12 }}>
+              <div className="row" style={{ gap: 12 }}>
+                <strong>{track.name}</strong>
+                <button onClick={() => renameTrack(track.id, track.name)}>Rename</button>
+                <small>active: {displayRevisionNum(track.id, track.active_revision_id, revisionsByTrack)}</small>
+              </div>
+            </div>
 
-                <div className="row" style={{ gap: 12 }}>
-                  <label className="col" style={{ flex: 1 }}>
-                    Gain(dB)
-                    <input
-                      type="range"
-                      min={-24}
-                      max={12}
-                      step={0.5}
-                      value={sessionTracks[track.id]?.gain_db ?? 0}
-                      onChange={(e) => patchSessionTrack(track.id, { gain_db: Number(e.target.value) })}
-                    />
-                  </label>
-                  <label className="col" style={{ flex: 1 }}>
-                    Pan
-                    <input
-                      type="range"
-                      min={-1}
-                      max={1}
-                      step={0.01}
-                      value={sessionTracks[track.id]?.pan ?? 0}
-                      onChange={(e) => patchSessionTrack(track.id, { pan: Number(e.target.value) })}
-                    />
-                  </label>
-                </div>
+            <div className="row" style={{ flexWrap: "wrap" }}>
+              <label>
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  accept="audio/mp3,audio/mpeg"
+                  onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_preview", e.target.files[0])}
+                />
+                <span className="button-like">mp3 upload</span>
+              </label>
+              <label>
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  accept="audio/wav"
+                  onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "audio_source", e.target.files[0])}
+                />
+                <span className="button-like">wav upload</span>
+              </label>
+              <label>
+                <input
+                  type="file"
+                  style={{ display: "none" }}
+                  accept=".mid,.midi,audio/midi"
+                  onChange={(e) => e.target.files?.[0] && uploadAsset(track.id, "midi", e.target.files[0])}
+                />
+                <span className="button-like">midi upload</span>
+              </label>
+              {recordingTrackId === track.id ? (
+                <button className="danger" onClick={() => stopRecording(track.id)}>
+                  Stop Rec
+                </button>
+              ) : (
+                <button onClick={() => startRecording(track.id)} disabled={Boolean(recordingTrackId)}>
+                  Record
+                </button>
+              )}
+            </div>
 
-                <div className="col">
-                  {(revisionsByTrack[track.id] || []).map((rev) => (
-                    <div key={rev.id} className="row" style={{ justifyContent: "space-between" }}>
-                      <button onClick={() => setActive(track.id, rev.id)}>
-                        r{rev.revision_number} {track.active_revision_id === rev.id ? "(active)" : ""}
-                      </button>
-                      <small>{rev.track_assets.map((a) => `${a.asset_type}:${a.status}`).join(" / ") || "-"}</small>
-                    </div>
+            <div className="row" style={{ alignItems: "flex-start", gap: 12 }}>
+              <div className="col" style={{ flex: 1 }}>
+                <small>Revision</small>
+                <select
+                  value={sessionTracks[track.id]?.track_revision_id || ""}
+                  onChange={(e) => patchSessionTrack(track.id, { track_revision_id: e.target.value || null })}
+                >
+                  <option value="">No revision</option>
+                  {(revisionsByTrack[track.id] || []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      r{r.revision_number}
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid">
-          <div className="card col">
-            <h2>Player + Mix Session</h2>
-            <div className="row">
-              <select value={selectedSessionId} onChange={(e) => selectSession(e.target.value)}>
-                <option value="">No Session</option>
-                {sessions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <input value={newSessionName} onChange={(e) => setNewSessionName(e.target.value)} />
-              <button onClick={() => createSession("active")}>Save Active</button>
-              <button onClick={() => createSession("latest")}>Save Latest</button>
-              <button className="primary" onClick={saveSessionTracks}>Update Session</button>
+              <label className="row" style={{ marginTop: 18 }}>
+                Mute
+                <input
+                  type="checkbox"
+                  checked={sessionTracks[track.id]?.mute || false}
+                  onChange={(e) => patchSessionTrack(track.id, { mute: e.target.checked })}
+                />
+              </label>
             </div>
 
-            <div className="row">
-              <button className="primary" onClick={playAll}>Play</button>
-              <button onClick={pauseAll}>Pause</button>
-              <input type="range" min={0} max={360} step={0.1} onChange={(e) => seekAll(Number(e.target.value))} />
+            <div className="row" style={{ gap: 12 }}>
+              <label className="col" style={{ flex: 1 }}>
+                Gain(dB)
+                <input
+                  type="range"
+                  min={-24}
+                  max={12}
+                  step={0.5}
+                  value={sessionTracks[track.id]?.gain_db ?? 0}
+                  onChange={(e) => patchSessionTrack(track.id, { gain_db: Number(e.target.value) })}
+                />
+              </label>
+              <label className="col" style={{ flex: 1 }}>
+                Pan
+                <input
+                  type="range"
+                  min={-1}
+                  max={1}
+                  step={0.01}
+                  value={sessionTracks[track.id]?.pan ?? 0}
+                  onChange={(e) => patchSessionTrack(track.id, { pan: Number(e.target.value) })}
+                />
+              </label>
             </div>
 
-            <small>トラックごとの Revision/Mute/Gain/Pan は左の DAW レーンから一括操作できます。</small>
-          </div>
-
-          <div className="card col">
-            <h2>Audio Nodes</h2>
-            {sortedTracks.map((track) => (
-              <audio
-                key={track.id}
-                ref={(el) => {
-                  audioRefs.current[track.id] = el;
-                }}
-                preload="auto"
-              />
-            ))}
-          </div>
-
-          <div className="card col">
-            <h2>Notes</h2>
-            <form className="row" onSubmit={createNote}>
-              <input value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="memo" />
-              <button type="submit">Add</button>
-            </form>
-            {notes.map((note) => (
-              <div className="row" key={note.id} style={{ justifyContent: "space-between" }}>
-                <span>{note.content}</span>
-                <div className="row">
-                  <button onClick={() => editNote(note.id, note.content)}>Edit</button>
-                  <button className="danger" onClick={() => deleteNote(note.id)}>Delete</button>
+            <div className="col">
+              {(revisionsByTrack[track.id] || []).map((rev) => (
+                <div key={rev.id} className="row" style={{ justifyContent: "space-between" }}>
+                  <button onClick={() => setActive(track.id, rev.id)}>
+                    r{rev.revision_number} {track.active_revision_id === rev.id ? "(active)" : ""}
+                  </button>
+                  <small>{rev.track_assets.map((a) => `${a.asset_type}:${a.status}`).join(" / ") || "-"}</small>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+        ))}
+      </div>
 
-          <div className="card col">
-            <h2>Decisions</h2>
-            <form className="col" onSubmit={createDecision}>
-              <input value={newDecisionTitle} onChange={(e) => setNewDecisionTitle(e.target.value)} placeholder="title" />
-              <textarea value={newDecisionText} onChange={(e) => setNewDecisionText(e.target.value)} placeholder="decision text" />
-              <button type="submit">Add</button>
-            </form>
-            {decisions.map((d) => (
-              <div className="card col" key={d.id} style={{ padding: 12 }}>
-                <strong>{d.title}</strong>
-                <p>{d.decision_text}</p>
-                <div className="row">
-                  <button onClick={() => editDecision(d)}>Edit</button>
-                  <button className="danger" onClick={() => deleteDecision(d.id)}>Delete</button>
-                </div>
-              </div>
-            ))}
+      <div className="card col">
+        <h2>Notes</h2>
+        <form className="row" onSubmit={createNote}>
+          <input value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder="memo" />
+          <button type="submit">Add</button>
+        </form>
+        {notes.map((note) => (
+          <div className="row" key={note.id} style={{ justifyContent: "space-between" }}>
+            <span>{note.content}</span>
+            <div className="row">
+              <button onClick={() => editNote(note.id, note.content)}>Edit</button>
+              <button className="danger" onClick={() => deleteNote(note.id)}>Delete</button>
+            </div>
           </div>
-        </div>
+        ))}
+      </div>
+
+      <div className="card col">
+        <h2>Decisions</h2>
+        <form className="col" onSubmit={createDecision}>
+          <input value={newDecisionTitle} onChange={(e) => setNewDecisionTitle(e.target.value)} placeholder="title" />
+          <textarea value={newDecisionText} onChange={(e) => setNewDecisionText(e.target.value)} placeholder="decision text" />
+          <button type="submit">Add</button>
+        </form>
+        {decisions.map((d) => (
+          <div className="card col" key={d.id} style={{ padding: 12 }}>
+            <strong>{d.title}</strong>
+            <p>{d.decision_text}</p>
+            <div className="row">
+              <button onClick={() => editDecision(d)}>Edit</button>
+              <button className="danger" onClick={() => deleteDecision(d.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "none" }}>
+        {sortedTracks.map((track) => (
+          <audio
+            key={track.id}
+            ref={(el) => {
+              audioRefs.current[track.id] = el;
+            }}
+            preload="auto"
+          />
+        ))}
       </div>
 
       {error && <small style={{ color: "#ff8080" }}>{error}</small>}
